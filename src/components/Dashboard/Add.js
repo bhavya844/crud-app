@@ -1,47 +1,83 @@
 import React, { useState } from 'react';
 import Swal from 'sweetalert2';
 
-const Add = ({ employees, setEmployees, setIsAdding }) => {
+const Add = ({ setIsAdding }) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [salary, setSalary] = useState('');
   const [date, setDate] = useState('');
+  const [photo, setPhoto] = useState(null);
 
-  const handleAdd = e => {
+  const handlePhotoChange = e => {
+    const file = e.target.files[0];
+    if (file) {
+      setPhoto(file);
+    }
+  };
+
+  const handleAdd = async e => {
     e.preventDefault();
 
-    if (!firstName || !lastName || !email || !salary || !date) {
+    if (!firstName || !lastName || !email || !salary || !date || !photo) {
       return Swal.fire({
         icon: 'error',
         title: 'Error!',
-        text: 'All fields are required.',
+        text: 'All fields including the photo are required.',
         showConfirmButton: true,
       });
     }
 
-    const id = employees.length + 1;
-    const newEmployee = {
-      id,
-      firstName,
-      lastName,
-      email,
-      salary,
-      date,
-    };
+    try {
+      // Convert the photo to a Base64 string
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Photo = reader.result.split(',')[1]; // Extract the Base64 part
 
-    employees.push(newEmployee);
-    localStorage.setItem('employees_data', JSON.stringify(employees));
-    setEmployees(employees);
-    setIsAdding(false);
+        const payload = {
+          firstName,
+          lastName,
+          email,
+          salary: parseInt(salary, 10), // Ensure salary is a number
+          date,
+          photo: base64Photo, // Add Base64 photo
+        };
 
-    Swal.fire({
-      icon: 'success',
-      title: 'Added!',
-      text: `${firstName} ${lastName}'s data has been Added.`,
-      showConfirmButton: false,
-      timer: 1500,
-    });
+        // Send POST request to Lambda using fetch
+        const response = await fetch(
+          'https://fxxbsr4tme.execute-api.us-east-1.amazonaws.com/addemployee',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload), // Pass the payload as JSON string
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+
+        const data = await response.json(); // Parse JSON response
+
+        Swal.fire({
+          icon: 'success',
+          title: 'Added!',
+          text: `User added successfully. Photo URL: ${data.photoUrl}`,
+          showConfirmButton: true,
+        });
+
+        setIsAdding(false);
+      };
+
+      reader.readAsDataURL(photo); // Read the file as a Base64 string
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: error.message || 'An unexpected error occurred.',
+        showConfirmButton: true,
+      });
+    }
   };
 
   return (
@@ -87,6 +123,14 @@ const Add = ({ employees, setEmployees, setIsAdding }) => {
           name="date"
           value={date}
           onChange={e => setDate(e.target.value)}
+        />
+        <label htmlFor="photo">Upload Photo</label>
+        <input
+          id="photo"
+          type="file"
+          name="photo"
+          accept="image/*"
+          onChange={handlePhotoChange}
         />
         <div style={{ marginTop: '30px' }}>
           <input type="submit" value="Add" />
