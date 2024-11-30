@@ -76,7 +76,7 @@ const employeesData = [
     firstName: 'Lyndsey',
     lastName: 'Follette',
     email: 'lyndsey@example.com',
-    salary: '110000',
+    salary: '110000', 
     date: '2020-01-15',
   },
 ];
